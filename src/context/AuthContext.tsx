@@ -14,9 +14,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-    });
+    const initAuth = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (session?.user) {
+        setUser(session.user);
+      } else {
+        // No session? Try anonymous sign-in
+        const { data, error } = await supabase.auth.signInAnonymously();
+        if (error) {
+          console.error("Anonymous sign-in failed:", error.message);
+        } else {
+          setUser(data.user ?? null);
+        }
+      }
+    };
+
+    initAuth();
 
     const { data: listener } = supabase.auth.onAuthStateChange((_, session) => {
       setUser(session?.user ?? null);
@@ -37,8 +53,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <AuthContext.Provider value={{ user, signInWithGitHub, signOut }}>
-      {" "}
-      {children}{" "}
+      {children}
     </AuthContext.Provider>
   );
 };
